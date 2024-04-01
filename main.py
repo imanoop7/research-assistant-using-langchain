@@ -2,16 +2,25 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 import requests
 from bs4 import BeautifulSoup
+from langchain_core.output_parsers import StrOutputParser
+from dotenv import load_dotenv
+import os
+load_dotenv()
+
+os.environ["LANGCHAIN_API_KEY"] = str(os.getenv("LANGCHAIN_API_KEY"))
+os.environ["LANGCHAIN_TRACING_V2"] = "true"
+os.environ["LANGCHAIN_ENDPOINT"] = "https://api.smith.langchain.com"
+os.environ["LANGCHAIN_PROJECT"] = "TEST LLM"
 
 
-template = """Summarize the data based on the context{contex}
+template = """Summarize the data based on the context{context}
 Question{question}
 """
 
+google_api_key = os.getenv("GOOGLE_API_KEY")
+model = ChatGoogleGenerativeAI(model='gemini-pro', google_api_key=google_api_key)
+prompt= ChatPromptTemplate.from_template(template)
 
-promt= ChatPromptTemplate.from_template(template)
-
-url="https://blog.langchain.dev/code-execution-with-langgraph/"
 
 def  web_scraper(url):
     try: 
@@ -28,3 +37,17 @@ def  web_scraper(url):
     except Exception as e:
         print(e)
         return f"Failed to retrive the page{e}"
+    
+
+
+url="https://blog.langchain.dev/code-execution-with-langgraph/"
+
+page_content = web_scraper(url)[:10000]
+
+chain = prompt|model|StrOutputParser()
+
+response =chain.invoke({
+    "question" : "what is langgraph ?",
+    "context"  : page_content
+})
+
