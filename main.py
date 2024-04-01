@@ -5,12 +5,22 @@ from bs4 import BeautifulSoup
 from langchain_core.output_parsers import StrOutputParser
 from dotenv import load_dotenv
 import os
+from langchain_core.runnables import RunnablePassthrough
+from langchain_community.tools import DuckDuckGoSearchRun
 load_dotenv()
+
+
 
 os.environ["LANGCHAIN_API_KEY"] = str(os.getenv("LANGCHAIN_API_KEY"))
 os.environ["LANGCHAIN_TRACING_V2"] = "true"
 os.environ["LANGCHAIN_ENDPOINT"] = "https://api.smith.langchain.com"
 os.environ["LANGCHAIN_PROJECT"] = "TEST LLM"
+
+RESULTS_PER_QUESTION=3
+search = DuckDuckGoSearchRun()
+def web_search(query, num_results=RESULTS_PER_QUESTION):
+    results = search.reults(query, num_results)
+    return [r['links'] for r in results]
 
 
 template = """Summarize the data based on the context{context}
@@ -42,12 +52,18 @@ def  web_scraper(url):
 
 url="https://blog.langchain.dev/code-execution-with-langgraph/"
 
-page_content = web_scraper(url)[:10000]
 
-chain = prompt|model|StrOutputParser()
+chain = RunnablePassthrough.assign(
+    context= lambda x:web_scraper(x["url"])[:10000]
+)|prompt|model|StrOutputParser()
 
-response =chain.invoke({
-    "question" : "what is langgraph ?",
-    "context"  : page_content
+output=RunnablePassthrough.assign(
+    urls = lambda x: search(x["question"])
+)| (lambda x: [{"question":x["question"], "url":u}for u in x["urls"]])|chain.map()
+
+
+
+response =output.invoke({
+    "question" : "what is langgraph ?"
 })
 
