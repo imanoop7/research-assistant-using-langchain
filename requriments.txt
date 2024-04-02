@@ -3,3 +3,5 @@ langchain-google-genai
 requests
 duckduckgo-search
 beautifulsoup4
+python-dotenv
+langsmith
